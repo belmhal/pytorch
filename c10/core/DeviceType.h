@@ -25,11 +25,12 @@ enum class DeviceType : int8_t {
   XLA = 9, // XLA / TPU
   Vulkan = 10, // Vulkan
   Metal = 11, //Metal
+  MLC = 12, //ML Compute / Apple
   // NB: If you add more devices:
   //  - Change the implementations of DeviceTypeName and isValidDeviceType
   //    in DeviceType.cpp
   //  - Change the number below
-  COMPILE_TIME_MAX_DEVICE_TYPES = 12,
+  COMPILE_TIME_MAX_DEVICE_TYPES = 13,
 };
 
 constexpr DeviceType kCPU = DeviceType::CPU;
@@ -38,6 +39,7 @@ constexpr DeviceType kHIP = DeviceType::HIP;
 constexpr DeviceType kFPGA = DeviceType::FPGA;
 constexpr DeviceType kMSNPU = DeviceType::MSNPU;
 constexpr DeviceType kXLA = DeviceType::XLA;
+constexpr DeviceType kMLC = DeviceType::MLC;
 constexpr DeviceType kVulkan = DeviceType::Vulkan;
 constexpr DeviceType kMetal = DeviceType::Metal;
 

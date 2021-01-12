@@ -59,6 +59,7 @@ enum class DispatchKey : uint8_t {
   MSNPU, // unused externally, but tested at
          // test/cpp_extensions/msnpu_extension.cpp
   XLA, // lives out of tree at https://github.com/pytorch/xla
+  MLC, // lives out of tree at https://github.com/pytorch/MLCompute
   Vulkan,
   Metal,
 
@@ -218,6 +219,7 @@ enum class DispatchKey : uint8_t {
   AutogradCPU,
   AutogradCUDA,
   AutogradXLA,
+  AutogradMLC,
   AutogradNestedTensor, // lives out of tree at https://github.com/pytorch/nestedtensor
   // Here are some reserved pre-autograd keys for user-defined backends, see
   // Note [Private use DispatchKey]

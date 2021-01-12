@@ -59,6 +59,9 @@ Backend backendToBackendOfDeviceType(Backend b, DeviceType d) {
     case DeviceType::XLA:
       TORCH_CHECK(!isSparse(b), "Sparse not implemented for XLA");
       return Backend::XLA;
+    case DeviceType::MLC:
+      TORCH_CHECK(!isSparse(b), "Sparse not implemented for MLC");
+      return Backend::MLC;
     default:
       AT_ERROR("Unknown device type");
   }

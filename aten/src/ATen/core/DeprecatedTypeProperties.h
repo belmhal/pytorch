@@ -42,6 +42,10 @@ class TORCH_API DeprecatedTypeProperties {
     return backendToDeviceType(backend_) == kCUDA;
   }
 
+  bool is_mlc() const {
+    return backendToDeviceType(backend_) == kMLC;
+  }
+
   ScalarType scalarType() const {
     return scalar_type_;
   }
@@ -88,6 +92,10 @@ class TORCH_API DeprecatedTypeProperties {
 
   DeprecatedTypeProperties & hip() const {
     return toBackend(Backend::HIP);
+  }
+
+  DeprecatedTypeProperties & mlc() const {
+    return toBackend(Backend::MLC);
   }
 
   /// Constructs the `TensorOptions` from a type and a `device_index`.

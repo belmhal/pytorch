@@ -42,6 +42,7 @@ enum class Backend {
   QuantizedCUDA,
   Undefined,
   MkldnnCPU,
+  MLC,
   NumOptions
 };
 
@@ -88,6 +89,8 @@ static inline Backend toDense(Backend b) {
       return Backend::QuantizedCPU;
     case Backend::QuantizedCUDA:
       return Backend::QuantizedCUDA;
+    case Backend::MLC:
+      return Backend::MLC;
     default:
       throw std::runtime_error("Unknown backend");
   }
@@ -106,6 +109,8 @@ static inline Backend dispatchKeyToBackend(DispatchKey t) {
     return Backend::MSNPU;
   } else if (t == DispatchKey::XLA || t == DispatchKey::AutogradXLA) {
     return Backend::XLA;
+  } else if (t == DispatchKey::MLC || t == DispatchKey::AutogradMLC) {
+    return Backend::MLC;
   } else if (t == DispatchKey::Vulkan) {
     return Backend::Vulkan;
   } else if (t == DispatchKey::Metal) {
@@ -161,6 +166,8 @@ static inline DispatchKey backendToDispatchKey(Backend b) {
       return DispatchKey::QuantizedCUDA;
     case Backend::Undefined:
       return DispatchKey::Undefined;
+    case Backend::MLC:
+      return DispatchKey::MLC;
     default:
       throw std::runtime_error("Unknown backend");
   }
@@ -195,6 +202,8 @@ static inline DeviceType backendToDeviceType(Backend b) {
       return DeviceType::Vulkan;
     case Backend::Metal:
       return DeviceType::Metal;
+    case Backend::MLC:
+      return DeviceType::MLC;
     case Backend::Undefined:
       AT_ERROR("Undefined backend is not a valid device type");
     default:
@@ -221,6 +230,8 @@ static inline Backend backendToCPU(Backend b) {
     case Backend::MSNPU:
     case Backend::XLA:
       return Backend::CPU;
+    case Backend::MLC:
+      return Backend::CPU;
     case Backend::MkldnnCPU:
       return Backend::MkldnnCPU;
     case Backend::QuantizedCPU:
@@ -242,6 +253,7 @@ static inline Backend backendToCUDA(Backend b) {
     case Backend::FPGA:
     case Backend::MSNPU:
     case Backend::XLA:
+    case Backend::MLC:
       return Backend::CUDA;
     case Backend::SparseCPU:
     case Backend::SparseCUDA:
@@ -262,6 +274,7 @@ static inline Backend backendToHIP(Backend b) {
     case Backend::FPGA:
     case Backend::MSNPU:
     case Backend::XLA:
+    case Backend::MLC:
       return Backend::HIP;
     case Backend::SparseCPU:
     case Backend::SparseCUDA:
@@ -289,6 +302,8 @@ static inline const char* toString(Backend b) {
       return "MSNPU";
     case Backend::XLA:
       return "XLA";
+    case Backend::MLC:
+      return "MLC";
     case Backend::SparseCPU:
       return "SparseCPU";
     case Backend::SparseCUDA:

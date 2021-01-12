@@ -282,12 +282,25 @@ TEST(OperatorRegistrationTest, whenRegisteringMultipleKernelsInSameOpCallAndCall
   }, "Could not run '_test::dummy' with arguments from the 'XLA'"
   " backend.");
 
+  expectThrows<c10::Error>([&] {
+    callOp(*op, dummyTensor(c10::DispatchKey::MLC));
+  }, "Could not run '_test::dummy' with arguments from the 'MLC'"
+  " backend.");
+
   // also assert that the error message contains the available tensor type ids, but don't assert their order
   expectThrows<c10::Error>([&] {
     callOp(*op, dummyTensor(c10::DispatchKey::XLA));
   }, "CPU");
   expectThrows<c10::Error>([&] {
     callOp(*op, dummyTensor(c10::DispatchKey::XLA));
+  }, "CUDA");
+
+  // also assert that the error message contains the available tensor type ids, but don't assert their order
+  expectThrows<c10::Error>([&] {
+    callOp(*op, dummyTensor(c10::DispatchKey::MLC));
+  }, "CPU");
+  expectThrows<c10::Error>([&] {
+    callOp(*op, dummyTensor(c10::DispatchKey::MLC));
   }, "CUDA");
 }
 
@@ -302,7 +315,8 @@ TEST(OperatorRegistrationTest, whenRegisteringMultipleKernelsByNameAndNoneCanInf
     auto registrar1 = c10::RegisterOperators().op("_test::dummy", c10::RegisterOperators::options()
       .kernel<&stackBasedKernel>(c10::DispatchKey::CPU)
       .kernel<&stackBasedKernel>(c10::DispatchKey::CUDA)
-      .kernel<&stackBasedKernel>(c10::DispatchKey::XLA));
+      .kernel<&stackBasedKernel>(c10::DispatchKey::XLA)
+      .kernel<&stackBasedKernel>(c10::DispatchKey::MLC));
   }, "Cannot infer operator schema for this kind of kernel in registration of operator _test::dummy");
 }
 
@@ -311,7 +325,8 @@ TEST(OperatorRegistrationTest, whenRegisteringMultipleKernelsBySchemaAndNoneCanI
   auto registrar1 = c10::RegisterOperators().op("_test::dummy(Tensor dummy) -> ()", c10::RegisterOperators::options()
     .kernel<&stackBasedKernel>(c10::DispatchKey::CPU)
     .kernel<&stackBasedKernel>(c10::DispatchKey::CUDA)
-    .kernel<&stackBasedKernel>(c10::DispatchKey::XLA));
+    .kernel<&stackBasedKernel>(c10::DispatchKey::XLA)
+    .kernel<&stackBasedKernel>(c10::DispatchKey::MLC));
 
   auto op = Dispatcher::singleton().findSchema({"_test::dummy", ""});
   ASSERT_TRUE(op.has_value()); // assert schema is registered
@@ -330,14 +345,21 @@ TEST(OperatorRegistrationTest, whenRegisteringMultipleKernelsBySchemaAndNoneCanI
   callOp(*op, dummyTensor(c10::DispatchKey::XLA));
   EXPECT_TRUE(called_stackbased_kernel);
   EXPECT_FALSE(called_kernel);
+
+  called_kernel = called_stackbased_kernel = false;
+  callOp(*op, dummyTensor(c10::DispatchKey::MLC));
+  EXPECT_TRUE(called_stackbased_kernel);
+  EXPECT_FALSE(called_kernel);
 }
+
 
 TEST(OperatorRegistrationTest, whenRegisteringMultipleKernelsByNameAndOnlyOneCanInferSchema_thenSucceeds) {
   bool called_kernel = false;
   auto registrar1 = c10::RegisterOperators().op("_test::dummy", c10::RegisterOperators::options()
     .kernel<&stackBasedKernel>(c10::DispatchKey::CPU)
     .kernel<MockKernel>(c10::DispatchKey::CUDA, &called_kernel)
-    .kernel<&stackBasedKernel>(c10::DispatchKey::XLA));
+    .kernel<&stackBasedKernel>(c10::DispatchKey::XLA)
+    .kernel<&stackBasedKernel>(c10::DispatchKey::MLC));
 
   auto op = Dispatcher::singleton().findSchema({"_test::dummy", ""});
   ASSERT_TRUE(op.has_value()); // assert schema is registered
@@ -354,6 +376,11 @@ TEST(OperatorRegistrationTest, whenRegisteringMultipleKernelsByNameAndOnlyOneCan
 
   called_kernel = called_stackbased_kernel = false;
   callOp(*op, dummyTensor(c10::DispatchKey::XLA));
+  EXPECT_TRUE(called_stackbased_kernel);
+  EXPECT_FALSE(called_kernel);
+
+  called_kernel = called_stackbased_kernel = false;
+  callOp(*op, dummyTensor(c10::DispatchKey::MLC));
   EXPECT_TRUE(called_stackbased_kernel);
   EXPECT_FALSE(called_kernel);
 }
@@ -363,7 +390,8 @@ TEST(OperatorRegistrationTest, whenRegisteringMultipleKernelsBySchemaAndOnlyOneC
   auto registrar1 = c10::RegisterOperators().op("_test::dummy(Tensor dummy) -> ()", c10::RegisterOperators::options()
     .kernel<&stackBasedKernel>(c10::DispatchKey::CPU)
     .kernel<MockKernel>(c10::DispatchKey::CUDA, &called_kernel)
-    .kernel<&stackBasedKernel>(c10::DispatchKey::XLA));
+    .kernel<&stackBasedKernel>(c10::DispatchKey::XLA)
+    .kernel<&stackBasedKernel>(c10::DispatchKey::MLC));
 
   auto op = Dispatcher::singleton().findSchema({"_test::dummy", ""});
   ASSERT_TRUE(op.has_value()); // assert schema is registered
@@ -380,6 +408,11 @@ TEST(OperatorRegistrationTest, whenRegisteringMultipleKernelsBySchemaAndOnlyOneC
 
   called_kernel = called_stackbased_kernel = false;
   callOp(*op, dummyTensor(c10::DispatchKey::XLA));
+  EXPECT_TRUE(called_stackbased_kernel);
+  EXPECT_FALSE(called_kernel);
+
+  called_kernel = called_stackbased_kernel = false;
+  callOp(*op, dummyTensor(c10::DispatchKey::MLC));
   EXPECT_TRUE(called_stackbased_kernel);
   EXPECT_FALSE(called_kernel);
 }
@@ -594,6 +627,30 @@ TEST(OperatorRegistrationTest, AutogradXLAOverridesAutogradKernel) {
   EXPECT_FALSE(called_nonautograd);
 }
 
+TEST(OperatorRegistrationTest, AutogradMLCOverridesAutogradKernel) {
+  auto registrar = c10::RegisterOperators().op("_test::dummy(Tensor dummy) -> ()", c10::RegisterOperators::options()
+    .kernel<decltype(nonautograd_kernel), &nonautograd_kernel>(DispatchKey::AutogradMLC)
+    .kernel<decltype(autograd_kernel), &autograd_kernel>(DispatchKey::Autograd));
+
+  auto op = Dispatcher::singleton().findSchema({"_test::dummy", ""});
+  ASSERT_TRUE(op.has_value());
+
+  expectThrows<c10::Error>([&] {
+    callOp(*op, dummyTensor(c10::DispatchKey::MLC));
+  }, "Could not run '_test::dummy' with arguments from the 'MLC'"
+  " backend.");
+
+  called_nonautograd = called_autograd = false;
+  op->typed<void (Tensor)>().call(dummyTensor(DispatchKey::MLC, /*requires_grad=*/true));
+  EXPECT_TRUE(called_nonautograd);
+  EXPECT_FALSE(called_autograd);
+
+  called_nonautograd = called_autograd = false;
+  op->typed<void (Tensor)>().call(dummyTensor(DispatchKey::CPU, /*requires_grad=*/true));
+  EXPECT_TRUE(called_autograd);
+  EXPECT_FALSE(called_nonautograd);
+}
+
 TEST(OperatorRegistrationTest, whenRegisterWithXLAKernelAndCatchAll_AutogradXLAIsNotFilled) {
   {
     auto registrar = c10::RegisterOperators().op("_test::dummy(Tensor dummy) -> ()", c10::RegisterOperators::options()
@@ -630,6 +687,47 @@ TEST(OperatorRegistrationTest, whenRegisterWithXLAKernelAndCatchAll_AutogradXLAI
 
     called_nonautograd = called_autograd = false;
     op->typed<void (Tensor)>().call(dummyTensor(DispatchKey::XLA));
+    EXPECT_TRUE(called_autograd);
+    EXPECT_FALSE(called_nonautograd);
+  }
+}
+
+TEST(OperatorRegistrationTest, whenRegisterWithMLCKernelAndCatchAll_AutogradMLCIsNotFilled) {
+  {
+    auto registrar = c10::RegisterOperators().op("_test::dummy(Tensor dummy) -> ()", c10::RegisterOperators::options()
+      .catchAllKernel<decltype(nonautograd_kernel), nonautograd_kernel>());
+
+    auto op = Dispatcher::singleton().findSchema({"_test::dummy", ""});
+    ASSERT_TRUE(op.has_value());
+
+    called_nonautograd = called_autograd = false;
+    op->typed<void (Tensor)>().call(dummyTensor(DispatchKey::MLC, /*requires_grad=*/true));
+    EXPECT_TRUE(called_nonautograd);
+    EXPECT_FALSE(called_autograd);
+
+    called_nonautograd = called_autograd = false;
+    op->typed<void (Tensor)>().call(dummyTensor(DispatchKey::MLC));
+    EXPECT_FALSE(called_autograd);
+    EXPECT_TRUE(called_nonautograd);
+  }
+  {
+    auto registrar = c10::RegisterOperators().op("_test::dummy(Tensor dummy) -> ()", c10::RegisterOperators::options()
+      .kernel<decltype(autograd_kernel), &autograd_kernel>(DispatchKey::MLC)
+      .catchAllKernel<decltype(nonautograd_kernel), nonautograd_kernel>());
+
+    auto op = Dispatcher::singleton().findSchema({"_test::dummy", ""});
+    ASSERT_TRUE(op.has_value());
+
+    // When there's direct registration to MLC backend, AutogradMLC doesn't pick up catchAll
+    // kernel in precompute but just keep fallthrough kernel from backend fallback.
+    // Thus it falls through AutogradMLC and reaches the kernel at MLC key.
+    called_nonautograd = called_autograd = false;
+    op->typed<void (Tensor)>().call(dummyTensor(DispatchKey::MLC, /*requires_grad=*/true));
+    EXPECT_FALSE(called_nonautograd);
+    EXPECT_TRUE(called_autograd);
+
+    called_nonautograd = called_autograd = false;
+    op->typed<void (Tensor)>().call(dummyTensor(DispatchKey::MLC));
     EXPECT_TRUE(called_autograd);
     EXPECT_FALSE(called_nonautograd);
   }

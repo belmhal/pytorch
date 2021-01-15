@@ -502,32 +502,53 @@ static Tensor& prod_out_impl(Tensor& result, const Tensor& self, IntArrayRef dim
 // see https://github.com/pytorch/pytorch/pull/47305,
 Tensor trace_cpu(const Tensor& self) {
   Tensor result;
+  // Returns the ScalarType of the self tensor if the tensor is non integral type
+  // In the case, self is an integer type tensor, at::kLong is return since promote_integers
+  // is set to true
   ScalarType dtype = get_dtype(result, self, c10::nullopt, true);
   result = at::empty({}, self.options().dtype(dtype));
-  AT_DISPATCH_ALL_TYPES(self.scalar_type(), "trace", [&] {
-    using accscalar_t = at::acc_type<scalar_t, false>;
-    accscalar_t sum = 0;
-    const auto* t_data = self.data_ptr<scalar_t>();
+  if (dtype == at::kLong) {
+    AT_DISPATCH_INTEGRAL_TYPES(self.scalar_type(), "trace", [&] {
+      using accscalar_t = at::acc_type<scalar_t, false>;
+      accscalar_t sum = 0;
+      const auto* t_data = self.data_ptr<scalar_t>();
 
-    int64_t t_stride_0, t_stride_1, t_diag_size;
+      int64_t t_stride_0, t_stride_1, t_diag_size;
 
-    TORCH_CHECK(self.dim() == 2, "trace: expected a matrix, but got tensor with dim ", self.dim());
+      TORCH_CHECK(self.dim() == 2, "trace: expected a matrix, but got tensor with dim ", self.dim());
 
-    t_stride_0 = self.stride(0);
-    t_stride_1 = self.stride(1);
+      t_stride_0 = self.stride(0);
+      t_stride_1 = self.stride(1);
 
-    t_diag_size = std::min(self.size(0), self.size(1));
-    for (int64_t i = 0; i < t_diag_size; i++) {
-      sum += t_data[i * (t_stride_0 + t_stride_1)];
-    }
+      t_diag_size = std::min(self.size(0), self.size(1));
+      for (int64_t i = 0; i < t_diag_size; i++) {
+        sum += t_data[i * (t_stride_0 + t_stride_1)];
+      }
 
-    // all integer types get promoted to kLong
-    if (result.scalar_type() == at::kLong) {
+      // all integer types get promoted to kLong
       *result.data_ptr<int64_t>() = sum;
-    } else {
+    });
+  } else {
+    AT_DISPATCH_FLOATING_AND_COMPLEX_TYPES(self.scalar_type(), "trace", [&] {
+      using accscalar_t = at::acc_type<scalar_t, false>;
+      accscalar_t sum = 0;
+      const auto* t_data = self.data_ptr<scalar_t>();
+
+      int64_t t_stride_0, t_stride_1, t_diag_size;
+
+      TORCH_CHECK(self.dim() == 2, "trace: expected a matrix, but got tensor with dim ", self.dim());
+
+      t_stride_0 = self.stride(0);
+      t_stride_1 = self.stride(1);
+
+      t_diag_size = std::min(self.size(0), self.size(1));
+      for (int64_t i = 0; i < t_diag_size; i++) {
+        sum += t_data[i * (t_stride_0 + t_stride_1)];
+      }
+
       *result.data_ptr<scalar_t>() = sum;
-    }
-  });
+    });
+  }
 
   return result;
 }
@@ -843,7 +864,7 @@ Tensor any(const Tensor& self) {
               "any only supports CPU AND CUDA device type, got: ", self.device().type());
   TORCH_CHECK(self.layout() == Layout::Strided || self.layout() == Layout::Sparse,
               "any only supports strided AND sparse layout, got: ", self.layout());
-  
+
   // Refer [all, any : uint8 compatibility]
   Tensor result;
   ScalarType out_dtype;

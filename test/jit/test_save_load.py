@@ -88,17 +88,16 @@ class TestSaveLoad(JitTestCase):
             return e
 
     def _verify_no(self, kind, m):
-        node_count = sum(kind in str(n) for n in m.graph.nodes())
-        self.assertEqual(node_count, 0)
+        self._verify_count(kind, m, 0)
 
     def _verify_count(self, kind, m, count):
-        node_count = sum(kind in str(n) for n in m.graph.nodes())
+        node_count = sum(str(n).count(kind) for n in m.graph.nodes())
         self.assertEqual(node_count, count)
 
     """
     Tests that verify Torchscript remaps aten::div(_) from versions 0-3
     to call either aten::true_divide(_), if an input is a float type,
-    or aten::floor_divide(_) otherwise.
+    or truncated aten::divide(_) otherwise.
 
     NOTE: currently compares against current div behavior, too, since
       div behavior has not yet been updated.
@@ -108,7 +107,7 @@ class TestSaveLoad(JitTestCase):
         def historic_div(self, other):
             if self.is_floating_point() or other.is_floating_point():
                 return self.true_divide(other)
-            return self.floor_divide(other)
+            return self.divide(other, rounding_mode='trunc')
 
         # Tensor x Tensor
         class MyModule(torch.nn.Module):
@@ -128,8 +127,8 @@ class TestSaveLoad(JitTestCase):
         except Exception as e:
             self.skipTest("Failed to load fixture!")
 
-        self._verify_count("aten::div", v3_module, 3)  # true_divide aliases to div
-        self._verify_count("aten::floor_divide", v3_module, 3)
+        self._verify_count("aten::div", v3_module, 6)  # true_divide and divide alias to div
+        self._verify_count('prim::Constant[value="trunc"]', v3_module, 1)  # rounding_mode argument
 
         current_module = self._save_load_module(MyModule)
         self._verify_count("aten::div", current_module, 3)
@@ -156,7 +155,7 @@ class TestSaveLoad(JitTestCase):
         def historic_div_(self, other):
             if self.is_floating_point() or other.is_floating_point():
                 return self.true_divide_(other)
-            return self.floor_divide_(other)
+            return self.divide_(other, rounding_mode='trunc')
 
         class MyModule(torch.nn.Module):
             def __init__(self):
@@ -171,8 +170,8 @@ class TestSaveLoad(JitTestCase):
         except Exception as e:
             self.skipTest("Failed to load fixture!")
 
-        self._verify_count("aten::div", v3_module, 1)  # true_divide aliases to div
-        self._verify_count("aten::floor_divide", v3_module, 1)
+        self._verify_count("aten::div", v3_module, 2)  # true_divide and divide both alias to div
+        self._verify_count('prim::Constant[value="trunc"]', v3_module, 1)  # rounding_mode argument
 
         current_module = self._save_load_module(MyModule)
         self._verify_count("aten::div", current_module, 1)
@@ -202,7 +201,7 @@ class TestSaveLoad(JitTestCase):
         def historic_div_out(self, other, out):
             if self.is_floating_point() or other.is_floating_point() or out.is_floating_point():
                 return torch.true_divide(self, other, out=out)
-            return torch.floor_divide(self, other, out=out)
+            return torch.divide(self, other, out=out, rounding_mode='trunc')
 
         class MyModule(torch.nn.Module):
             def __init__(self):
@@ -216,8 +215,8 @@ class TestSaveLoad(JitTestCase):
         except Exception as e:
             self.skipTest("Failed to load fixture!")
 
-        self._verify_count("aten::div", v3_module, 1)  # true_divide aliases to div
-        self._verify_count("aten::floor_divide", v3_module, 1)
+        self._verify_count("aten::div", v3_module, 2)  # true_divide and divide alias to div
+        self._verify_count('prim::Constant[value="trunc"]', v3_module, 1)  # rounding_mode argument
 
         current_module = self._save_load_module(MyModule)
         self._verify_count("aten::div", current_module, 1)
@@ -252,7 +251,7 @@ class TestSaveLoad(JitTestCase):
         def historic_div_scalar_int(self, other: int):
             if self.is_floating_point():
                 return torch.true_divide(self, other)
-            return torch.floor_divide(self, other)
+            return torch.divide(self, other, rounding_mode='trunc')
 
         class MyModuleFloat(torch.nn.Module):
             def __init__(self):
@@ -275,8 +274,8 @@ class TestSaveLoad(JitTestCase):
             self.skipTest("Failed to load fixture!")
 
         for m in (v3_module_float, v3_module_int):
-            self._verify_count("aten::div", m, 1)  # true_divide aliases to div
-            self._verify_count("aten::floor_divide", m, 1)
+            self._verify_count("aten::div", m, 2)  # true_divide and divide alias to div
+            self._verify_count('prim::Constant[value="trunc"]', m, 1)  # rounding_mode argument
 
         current_module_float = self._save_load_module(MyModuleFloat)
         current_module_int = self._save_load_module(MyModuleInt)
@@ -312,7 +311,7 @@ class TestSaveLoad(JitTestCase):
         def historic_div_scalar_int_reciprocal(self, other: int):
             if self.is_floating_point():
                 return other / self
-            return other // self
+            return torch.divide(other, self, rounding_mode='trunc')
 
         class MyModuleFloat(torch.nn.Module):
             def __init__(self):
@@ -383,7 +382,7 @@ class TestSaveLoad(JitTestCase):
             if self.is_floating_point():
                 return self.true_divide_(other)
 
-            return self.floor_divide_(other)
+            return self.divide_(other, rounding_mode='trunc')
 
         class MyModuleFloat(torch.nn.Module):
             def __init__(self):
@@ -408,8 +407,8 @@ class TestSaveLoad(JitTestCase):
             self.skipTest("Failed to load fixture!")
 
         for m in (v3_module_float, v3_module_int):
-            self._verify_count("aten::div", m, 1)  # true_divide aliases to div
-            self._verify_count("aten::floor_divide", m, 1)
+            self._verify_count("aten::div_", m, 2)  # true_divide and divide alias to div
+            self._verify_count('prim::Constant[value="trunc"]', m, 1)  # rounding_mode argument
 
         current_module_float = self._save_load_module(MyModuleFloat)
         current_module_int = self._save_load_module(MyModuleInt)

@@ -63,6 +63,10 @@
 #endif
 #endif
 
+#if defined(USE_MLCOMPUTE)
+#include <mlc/torch_mlc/csrc/MLCInit.h>
+#endif
+
 #if defined(USE_VALGRIND)
 #include <callgrind.h>
 #endif
@@ -753,6 +757,9 @@ PyObject* initModule() {
   torch::python::init_bindings(module);
 #ifdef USE_CUDA
   torch::cuda::initModule(module);
+#endif
+#ifdef USE_MLCOMPUTE
+  torch::mlc::init_bindings(module);
 #endif
   ASSERT_TRUE(THPDoubleStorage_init(module));
   ASSERT_TRUE(THPFloatStorage_init(module));

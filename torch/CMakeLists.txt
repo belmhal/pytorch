@@ -156,6 +156,11 @@ if(USE_CUDNN OR USE_ROCM)
     endif()
 endif()
 
+if (USE_MLCOMPUTE)
+    list(APPEND TORCH_PYTHON_SRCS
+      ${MLC_PYTHON_SRCS})
+endif()
+
 if(USE_NUMPY)
     list(APPEND TORCH_PYTHON_COMPILE_DEFINITIONS USE_NUMPY)
 endif()

@@ -531,6 +531,10 @@ if(NOT INTERN_BUILD_MOBILE OR NOT BUILD_CAFFE2_MOBILE)
     endif()
   endif()
 
+  if(USE_MLCOMPUTE)
+    include(../mlc/mlc_build.cmake)
+  endif()
+
   if(USE_ROCM)
     list(APPEND Caffe2_HIP_SRCS ${Caffe2_GPU_HIP_JIT_FUSERS_SRCS})
     if(USE_NCCL)
@@ -1165,6 +1169,9 @@ if(USE_CUDA)
 elseif(USE_ROCM)
   target_link_libraries(torch PUBLIC torch_hip_library)
 endif()
+if(USE_MLCOMPUTE)
+  target_link_libraries(torch PUBLIC torch_mlc_library)
+endif()
 
 # Install PDB files for MSVC builds
 if(MSVC AND BUILD_SHARED_LIBS)
@@ -1472,6 +1479,7 @@ if(BUILD_PYTHON)
 
   # ---[ Python.
   if(BUILD_CAFFE2)
+  message("Caffe 2 Python sources: " ${Caffe2_CPU_PYTHON_SRCS})
   add_library(caffe2_pybind11_state MODULE ${Caffe2_CPU_PYTHON_SRCS})
   if(NOT MSVC)
     set_target_properties(caffe2_pybind11_state PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")

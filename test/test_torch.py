@@ -3266,8 +3266,8 @@ class TestTorchDeviceType(TestCase):
         self.assertRaises(RuntimeError, lambda: torch.nn.functional.conv2d(zero_d, w, groups=2))
 
         # nll_loss -- verify input can't be 0-dimensional.
-        self.assertRaises(ValueError, lambda: torch.nn.functional.nll_loss(zero_d, zero_d, reduction='none'))
-        self.assertRaises(ValueError, lambda: torch.nn.functional.nll_loss(zero_d, one_d, reduction='none'))
+        self.assertRaises(RuntimeError, lambda: torch.nn.functional.nll_loss(zero_d, zero_d, reduction='none'))
+        self.assertRaises(RuntimeError, lambda: torch.nn.functional.nll_loss(zero_d, one_d, reduction='none'))
         # verify output is 0-dimensional when reduction != 'none'
         for (input, target) in ((torch.randn(1, 1, device=device), torch.tensor([0], device=device)),
                                 (torch.randn(1, 1, 1, 1, device=device), torch.tensor([[[0]]], device=device))):

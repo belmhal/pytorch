@@ -14457,7 +14457,7 @@ class TestNNDeviceType(NNTestCase):
         x = torch.randn((10, 3), requires_grad=True, device=device)
         # t should have size (10,)
         t = torch.zeros((3,), dtype=torch.int64, device=device)
-        with self.assertRaisesRegex(ValueError, 'Expected.*batch_size'):
+        with self.assertRaisesRegex(RuntimeError, 'Expected.*batch_size'):
             F.nll_loss(x, t)
 
     def test_nll_loss_out_of_bounds_ignore_index(self, device):

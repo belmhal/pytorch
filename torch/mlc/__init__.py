@@ -24,6 +24,7 @@ import torch._C
 
 from ._utils import ReversibleDict
 from ..storage import _StorageBase
+from .lstm import LSTM
 
 def is_available():
     r"""Returns a bool indicating if MLC is currently available."""
@@ -63,8 +64,8 @@ def set_device(device):
     torch._C._set_mlc_device(device_map)
 
 def get_cache_parameters():
-    return {"node_limit":torch._C._get_mlc_cache_node_limit(),
-            "memory_limit_mb":torch._C._get_mlc_cache_memory_limit_mb()}
+    return {"node_limit": torch._C._get_mlc_cache_node_limit(),
+            "memory_limit_mb": torch._C._get_mlc_cache_memory_limit_mb()}
 
 def set_cache_node_limit(i):
     assert(i > 0)
